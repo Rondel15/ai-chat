@@ -7,12 +7,14 @@ const Persona = require("../models/Persona");
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // Allow guests — attach user if token exists, otherwise continue as guest
-const optionalAuth = (req, res, next) => {
+const optionalAuth = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return next();
   try {
     const jwt = require("jsonwebtoken");
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    const User = require("../models/User");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = await User.findById(decoded.id).select("-password");
   } catch {}
   next();
 };
@@ -92,7 +94,7 @@ router.post("/", optionalAuth, async (req, res) => {
       }
       await conversation.save();
     }
-    
+
     res.write(`data: ${JSON.stringify({ type: "done", conversationId: conversation._id })}\n\n`);
     res.end();
   } catch (err) {
