@@ -10,6 +10,15 @@ const SUGGESTIONS = [
   "Help me debug this: undefined is not a function",
 ];
 
+const GUEST_LIMIT = 20;
+const getGuestCount = () => parseInt(localStorage.getItem("guestMsgCount") || "0");
+const incrementGuestCount = () => localStorage.setItem("guestMsgCount", getGuestCount() + 1);
+
+const BOONBOT_NAME = "BoonBot AI";
+const BOONBOT_EMOJI = "🤖";
+const BOONBOT_TAGLINE = "Your smart AI buddy";
+const BOONBOT_DESCRIPTION = "I can help you write code, answer questions, brainstorm ideas, explain concepts, and much more. Just type a message or pick a suggestion below to get started!";
+
 export default function ChatWindow() {
   const { user } = useAuthStore();
   const {
@@ -30,6 +39,16 @@ export default function ChatWindow() {
   const sendMessage = async (text) => {
     const content = (text || input).trim();
     if (!content || streaming) return;
+
+    // Guest limit check
+    if (!user) {
+      const count = getGuestCount();
+      if (count >= GUEST_LIMIT) {
+        setError("You've reached the 20 message limit. Register for unlimited access!");
+        return;
+      }
+      incrementGuestCount();
+    }
 
     setInput("");
     setError("");
@@ -63,7 +82,6 @@ export default function ChatWindow() {
           const json = JSON.parse(line.replace("data: ", ""));
           if (json.type === "meta") {
             convId = json.conversationId;
-            // Add to sidebar if new conversation
             if (!activeConversation?._id && !conversations.find(c => c._id === convId)) {
               addConversationToSidebar({
                 _id: convId,
@@ -96,28 +114,75 @@ export default function ChatWindow() {
   };
 
   const isEmpty = messages.length === 0 && !streaming;
+  const guestMessagesLeft = user ? null : GUEST_LIMIT - getGuestCount();
+
+  const botName = activePersona?.name || BOONBOT_NAME;
+  const botEmoji = activePersona?.emoji || BOONBOT_EMOJI;
+  const botTagline = activePersona?.description || BOONBOT_TAGLINE;
 
   return (
     <div className="flex flex-col flex-1 h-screen">
       {/* Header */}
       <div className="px-6 py-3 border-b border-border flex items-center gap-3 bg-panel">
-        <span className="text-lg">{activePersona?.emoji || "🤖"}</span>
-        <div>
-          <p className="text-sm font-semibold text-soft">{activePersona?.name || "AI Assistant"}</p>
-          <p className="text-[11px] text-muted">{activePersona?.description || "Powered by Llama 3.1"}</p>
+        <span className="text-lg">{botEmoji}</span>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-soft">{botName}</p>
+          <p className="text-[11px] text-muted">{botTagline}</p>
         </div>
+        {/* Guest message counter */}
+        {!user && (
+          <div className="flex items-center gap-2 text-xs text-muted">
+            <span>{guestMessagesLeft} messages left</span>
+            <a
+              href="/register"
+              className="bg-accent text-surface px-3 py-1.5 rounded-lg hover:bg-accent-dim transition-colors whitespace-nowrap"
+            >
+              Register Free
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {isEmpty && (
-          <div className="flex flex-col items-center justify-center h-full text-center gap-6">
-            <div>
-              <div className="text-5xl mb-3">{activePersona?.emoji || "🤖"}</div>
-              <h2 className="text-xl font-semibold text-soft mb-1">How can I help you?</h2>
-              <p className="text-muted text-sm">{activePersona?.description || "Ask me anything"}</p>
+          <div className="flex flex-col items-center justify-center h-full text-center gap-6 max-w-xl mx-auto">
+
+            {/* Bot avatar + name */}
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-16 h-16 rounded-2xl bg-card border border-border flex items-center justify-center text-4xl shadow-sm">
+                {botEmoji}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-soft">{botName}</h1>
+                <p className="text-sm text-accent font-medium mt-0.5">{botTagline}</p>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 max-w-lg w-full">
+
+            {/* About card */}
+            <div className="bg-card border border-border rounded-2xl px-6 py-4 text-left w-full">
+              <p className="text-sm text-muted leading-relaxed">{BOONBOT_DESCRIPTION}</p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {["💻 Coding", "✍️ Writing", "🧠 Brainstorming", "📚 Learning", "🔍 Research"].map((tag) => (
+                  <span key={tag} className="text-xs bg-surface border border-border text-muted px-2.5 py-1 rounded-full">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Guest notice */}
+            {!user && (
+              <p className="text-muted text-xs">
+                Try 20 messages for free ·{" "}
+                <a href="/register" className="text-accent hover:underline">
+                  Register for unlimited
+                </a>
+              </p>
+            )}
+
+            {/* Suggestions */}
+            <div className="grid grid-cols-2 gap-2 w-full">
               {SUGGESTIONS.map((s, i) => (
                 <button
                   key={i}
@@ -146,7 +211,7 @@ export default function ChatWindow() {
           <div className="flex gap-3">
             <div className="w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center text-xs text-soft flex-shrink-0 mt-1">AI</div>
             <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1">
-              {[0,1,2].map(i => (
+              {[0, 1, 2].map(i => (
                 <div key={i} className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
               ))}
             </div>
@@ -154,8 +219,16 @@ export default function ChatWindow() {
         )}
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-2 rounded-lg">
-            {error}
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-2 rounded-lg flex items-center justify-between gap-4">
+            <span>{error}</span>
+            {!user && (
+              <a
+                href="/register"
+                className="bg-accent text-surface text-xs px-3 py-1.5 rounded-lg hover:bg-accent-dim transition-colors whitespace-nowrap"
+              >
+                Register Free
+              </a>
+            )}
           </div>
         )}
 
@@ -171,7 +244,7 @@ export default function ChatWindow() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Message AI..."
+              placeholder={`Message ${botName}...`}
               rows={1}
               disabled={streaming}
               className="flex-1 bg-transparent text-sm text-soft placeholder-muted resize-none focus:outline-none max-h-40 disabled:opacity-50"
