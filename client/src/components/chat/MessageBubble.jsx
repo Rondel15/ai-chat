@@ -42,7 +42,7 @@ export default function MessageBubble({ message, isStreaming }) {
   const isUser = message.role === "user";
 
   return (
-    <div className={`flex gap-3 msg-appear ${isUser ? "flex-row-reverse" : ""}`}>
+    <div className={`flex gap-3 msg-appear max-w-2xl mx-auto w-full ${isUser ? "flex-row-reverse" : ""}`}>
       {/* Avatar */}
       <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-1 ${isUser ? "bg-accent text-surface" : "bg-card border border-border text-soft"}`}>
         {isUser ? "U" : "AI"}

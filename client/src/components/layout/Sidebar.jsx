@@ -4,7 +4,7 @@ import useChatStore from "../../store/chatStore";
 import useAuthStore from "../../store/authStore";
 import { formatDistanceToNow } from "date-fns";
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuthStore();
   const {
     conversations, activeConversation, activePersona, personas,
@@ -24,6 +24,7 @@ export default function Sidebar() {
   const handleLoadConversation = async (id) => {
     const { data } = await api.get(`/conversations/${id}`);
     loadConversation(data.conversation);
+    onClose?.();
   };
 
   const handleDelete = async (e, id) => {
@@ -41,20 +42,29 @@ export default function Sidebar() {
   if (!user) return null;
 
   return (
-    <aside className="w-64 flex flex-col bg-panel border-r border-border h-screen">
+    <aside className={`fixed md:relative z-30 w-64 flex flex-col bg-panel border-r border-border h-screen transition-transform duration-300 ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-accent rounded-md flex items-center justify-center text-surface font-bold text-xs">AI</div>
           <span className="text-soft font-semibold text-sm">BoonBot AI</span>
         </div>
-        <button
-          onClick={newChat}
-          title="New chat"
-          className="w-7 h-7 flex items-center justify-center text-muted hover:text-soft hover:bg-card rounded-md transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={newChat}
+            title="New chat"
+            className="w-7 h-7 flex items-center justify-center text-muted hover:text-soft hover:bg-card rounded-md transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+          </button>
+          {/* Close button — mobile only */}
+          <button
+            onClick={onClose}
+            className="md:hidden w-7 h-7 flex items-center justify-center text-muted hover:text-soft hover:bg-card rounded-md transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
       </div>
 
       {/* Persona selector */}
