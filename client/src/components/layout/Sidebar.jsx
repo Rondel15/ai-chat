@@ -16,9 +16,10 @@ export default function Sidebar() {
   const [showPersonas, setShowPersonas] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
     api.get("/conversations").then(({ data }) => setConversations(data.conversations));
     api.get("/personas").then(({ data }) => setPersonas(data.personas));
-  }, []);
+  }, [user]);
 
   const handleLoadConversation = async (id) => {
     const { data } = await api.get(`/conversations/${id}`);
@@ -35,6 +36,9 @@ export default function Sidebar() {
   const filtered = conversations.filter(c =>
     c.title.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Hide sidebar for guests
+  if (!user) return null;
 
   return (
     <aside className="w-64 flex flex-col bg-panel border-r border-border h-screen">
