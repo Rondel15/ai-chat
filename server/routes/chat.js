@@ -6,25 +6,47 @@ const Persona = require("../models/Persona");
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// Allow guests — attach user if token exists, otherwise continue as guest
+const optionalAuth = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return next();
+  try {
+    const jwt = require("jsonwebtoken");
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {}
+  next();
+};
+
 // POST /api/chat — send message with streaming
-router.post("/", auth, async (req, res) => {
+router.post("/", optionalAuth, async (req, res) => {
   try {
     const { conversationId, message, personaId } = req.body;
     if (!message?.trim()) return res.status(400).json({ error: "Message is required" });
 
     // Load or create conversation
     let conversation;
-    if (conversationId) {
-      conversation = await Conversation.findOne({ _id: conversationId, owner: req.user._id });
-      if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+    if (req.user) {
+      if (conversationId) {
+        conversation = await Conversation.findOne({ _id: conversationId, owner: req.user._id });
+        if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+      } else {
+        const persona = personaId ? await Persona.findById(personaId) : await Persona.findOne({ owner: req.user._id, isDefault: true });
+        conversation = await Conversation.create({
+          owner: req.user._id,
+          persona: persona?._id,
+          model: persona?.model || "llama-3.3-70b-versatile",
+          title: message.slice(0, 50),
+        });
+      }
     } else {
-      const persona = personaId ? await Persona.findById(personaId) : await Persona.findOne({ owner: req.user._id, isDefault: true });
-      conversation = await Conversation.create({
-        owner: req.user._id,
-        persona: persona?._id,
-        model: persona?.model || "llama-3.3-70b-versatile",
-        title: message.slice(0, 50),
-      });
+      // Guest — use in-memory conversation, no DB save
+      conversation = {
+        _id: null,
+        messages: [],
+        model: "llama-3.3-70b-versatile",
+        persona: null,
+        save: async () => {}, // no-op
+      };
     }
 
     // Load persona system prompt
@@ -63,15 +85,14 @@ router.post("/", auth, async (req, res) => {
       }
     }
 
-    // Save assistant response
-    conversation.messages.push({ role: "assistant", content: fullResponse });
-
-    // Auto-generate title from first message if still default
-    if (conversation.title === "New Chat" || conversation.messages.length <= 2) {
-      conversation.title = message.slice(0, 60) + (message.length > 60 ? "..." : "");
+    if (req.user) {
+      conversation.messages.push({ role: "assistant", content: fullResponse });
+      if (conversation.title === "New Chat" || conversation.messages.length <= 2) {
+        conversation.title = message.slice(0, 60) + (message.length > 60 ? "..." : "");
+      }
+      await conversation.save();
     }
-
-    await conversation.save();
+    
     res.write(`data: ${JSON.stringify({ type: "done", conversationId: conversation._id })}\n\n`);
     res.end();
   } catch (err) {

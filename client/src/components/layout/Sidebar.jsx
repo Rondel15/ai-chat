@@ -46,7 +46,7 @@ export default function Sidebar() {
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-accent rounded-md flex items-center justify-center text-surface font-bold text-xs">AI</div>
-          <span className="text-soft font-semibold text-sm">AI Chat</span>
+          <span className="text-soft font-semibold text-sm">BoonBot AI</span>
         </div>
         <button
           onClick={newChat}

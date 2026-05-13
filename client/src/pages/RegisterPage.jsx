@@ -26,7 +26,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 mb-8">
           <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center text-surface font-bold text-sm">AI</div>
-          <span className="text-soft font-semibold text-lg">AI Chat</span>
+          <span className="text-soft font-semibold text-lg">BoonBot AI</span>
         </div>
         <h1 className="text-2xl font-semibold text-soft mb-1">Create account</h1>
         <p className="text-muted text-sm mb-6">Start chatting with AI</p>
